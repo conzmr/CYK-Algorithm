@@ -1,0 +1,211 @@
+<html>
+<title>CYK Algorithm</title>
+<head>
+    <style>
+    * {
+        margin: 0;
+        padding: 0;
+    }
+    .tree ul {
+      width: 100%;
+      display: flex;
+      justify-content: center;
+      padding-top: 20px;
+      position: relative;
+      transition: all 0.5s;
+      -webkit-transition: all 0.5s;
+      -moz-transition: all 0.5s;
+    }
+    .tree li {
+      white-space: nowrap;
+      float: left;
+      text-align: center;
+      list-style-type: none;
+      position: relative;
+      padding: 20px 5px 0 5px;
+      transition: all 0.5s;
+      -webkit-transition: all 0.5s;
+      -moz-transition: all 0.5s;
+    }
+    .tree li::before, .tree li::after{
+      content: '';
+      position: absolute;
+      top: 0;
+      right: 50%;
+      border-top: 1px solid #ccc;
+      width: 50%;
+      height: 20px;
+    }
+    .tree li::after{
+      right: auto;
+      left: 50%;
+      border-left: 1px solid #ccc;
+    }
+    .tree li:only-child::after, .tree li:only-child::before {
+      display: none;
+    }
+    .tree li:only-child{
+      padding-top: 0;
+    }
+    .tree li:first-child::before, .tree li:last-child::after{
+      border: 0 none;
+    }
+    .tree li:last-child::before{
+      border-right: 1px solid #ccc;
+      border-radius: 0 5px 0 0;
+      -webkit-border-radius: 0 5px 0 0;
+      -moz-border-radius: 0 5px 0 0;
+    }
+    .tree li:first-child::after{
+      border-radius: 5px 0 0 0;
+      -webkit-border-radius: 5px 0 0 0;
+      -moz-border-radius: 5px 0 0 0;
+    }
+    .tree ul ul::before{
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 50%;
+      border-left: 1px solid #ccc;
+      width: 0;
+      height: 20px;
+    }
+    .tree li a{
+      border: 1px solid #ccc;
+      padding: 5px 10px;
+      text-decoration: none;
+      color: #666;
+      font-family: arial, verdana, tahoma;
+      font-size: 20px;
+      display: inline-block;
+      border-radius: 20px;
+      -webkit-border-radius: 20px;
+      -moz-border-radius: 20px;
+      transition: all 0.5s;
+      -webkit-transition: all 0.5s;
+      -moz-transition: all 0.5s;
+    }
+    .tree li a:hover, .tree li a:hover+ul li a {
+      background: #d9f2e6;
+      color: #000;
+      border: 1px solid #008060;
+    }
+    .tree li a:hover+ul li::after,
+    .tree li a:hover+ul li::before,
+    .tree li a:hover+ul::before,
+    .tree li a:hover+ul ul::before{
+      border-color:  #94a0b4;
+    }
+    </style>
+</head>
+
+<body onLoad="cyk()">
+</body>
+
+<script>
+function cyk() {
+
+  var grammar = [
+      'S -> A B | S S | A C | B D',
+      'A -> a',
+      'B -> b',
+      'C -> S B',
+      'D -> S A'
+  ];
+
+  var word = 'a a b b a b a b';
+
+  var derivationTree = parse(parseGrammar(grammar), word.split(' '));
+  console.log(derivationTree);
+
+  for (var i in derivationTree[0][derivationTree.length - 1]) {
+      document.body.innerHTML += '<div class="tree" id="displayTree"><ul>' + traversal(derivationTree, 0, derivationTree.length - 1, i) + '</ul></div><br/>';
+  }
+
+  function parseGrammar(grammar) {
+      var dict = {};
+      for (var i in grammar) {
+          var production = grammar[i];
+          var splitted = production.split('->');
+          var root = splitted[0].trim();
+
+          var productions = splitted[1].split('|');
+          for(var j in productions) {
+              var childs = (productions[j].trim()).split(' ');
+              var key = setKey(childs);
+              if (!dict[key]) {
+                  dict[key] = [];
+              }
+              dict[key].push(root);
+          }
+      }
+      return dict;
+  }
+
+  function newArray(dim) {
+    var array = new Array(dim);
+    for (var i = 0; i < dim; i++) {
+        array[i] = new Array(dim);
+        for (var j = 0; j < dim; j++) {
+            array[i][j] = [];
+        }
+    }
+    return array;
+  }
+
+function setKey(obj) {
+    if(typeof obj === 'string') {
+        obj = [obj];
+    }
+    var jsonObj = JSON.stringify(obj, null, 0);
+    return jsonObj;
+}
+
+function parse(grammar, tokens) {
+    var tokensLen = tokens.length + 1;
+    var parsed = newArray(tokensLen);
+    for (var right = 1; right < tokensLen; right++) {
+        var token = tokens[right - 1];
+        var terminalRules = grammar[setKey(token)];
+        for (var r in terminalRules) {
+            var rule = terminalRules[r];
+            parsed[right - 1][right].push({
+                rule: rule,
+                token: token
+            });
+        }
+        for (var left = right - 2; left >= 0; left--) {
+            for (var mid = left + 1; mid < right; mid++) {
+                var leftSubtreeRoots = parsed[left][mid];
+                var rightSubtreeRoots = parsed[mid][right];
+                for (var leftRootIndx in leftSubtreeRoots) {
+                    for (var rightRootIndx in rightSubtreeRoots) {
+                        var rls = grammar[setKey([leftSubtreeRoots[leftRootIndx]['rule'],  rightSubtreeRoots[rightRootIndx]['rule']])];
+                        if (rls) {
+                            for (var r in rls) {
+                                parsed[left][right].push({
+                                    rule: rls[r],
+                                    middle: mid,
+                                    leftRootIndex: leftRootIndx,
+                                    rightRootIndex: rightRootIndx
+                                });
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+    return parsed;
+}
+
+function traversal(parseTable, left, right, rootIndex) {
+        if (!parseTable[left][right][rootIndex]['middle']) {
+            return '<li><a href="#">' + parseTable[left][right][rootIndex]['rule'] + '</a><ul><li><a href="#">' + parseTable[left][right][rootIndex]['token'] + '</a></li></ul></li>';
+        }
+        return '<li><a href="#">' + parseTable[left][right][rootIndex]['rule'] + '</a><ul>' + traversal(parseTable, left, parseTable[left][right][rootIndex]['middle'], parseTable[left][right][rootIndex]['leftRootIndex']) + traversal(parseTable, parseTable[left][right][rootIndex]['middle'], right, parseTable[left][right][rootIndex]['rightRootIndex']) + '</ul></li>';
+    }
+}
+</script>
+
+</html>
